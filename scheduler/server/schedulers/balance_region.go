@@ -93,7 +93,7 @@ func (s *balanceRegionScheduler) Schedule(cluster opt.Cluster) *operator.Operato
 	sort.Slice(stores, func(i, j int) bool {
 		return stores[i].GetRegionSize() > stores[j].GetRegionSize()
 	})
-	
+
 	for _, source := range stores {
 		for i := 0; i < balanceRegionRetryLimit; i++ {
 			region := pickRegionByOrder(cluster, source.GetID())
