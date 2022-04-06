@@ -244,8 +244,6 @@ func (d *peerMsgHandler) applyAdminReq(entry *eraftpb.Entry, kvWB *engine_util.W
 
 func (d *peerMsgHandler) applyNormalReqs(entry *eraftpb.Entry, header *raft_cmdpb.RaftRequestHeader, kvWB *engine_util.WriteBatch, reqs []*raft_cmdpb.Request) {
 	log.Info(fmt.Sprintf("receive entry[%d] apply request", entry.Index))
-	//v, _ := engine_util.GetCF(d.peerStorage.Engines.Kv, engine_util.CfDefault, []byte("k1"))
-	//log.Info(fmt.Sprintf("k1: %d", v))
 	if len(reqs) == 0 {
 		d.persistApplyIndex(entry.Index, kvWB)
 		log.Info(fmt.Sprintf("entry[%d] is a no op entry, igonre", entry.Index))

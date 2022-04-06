@@ -350,7 +350,7 @@ func TestUnreliable2B(t *testing.T) {
 // network ends up in the minority partition.
 func TestOnePartition2B(t *testing.T) {
 	cfg := config.NewTestConfig()
-	
+
 	cluster := NewTestCluster(5, cfg)
 	cluster.Start()
 	defer cluster.Shutdown()
