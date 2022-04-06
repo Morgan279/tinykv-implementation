@@ -294,7 +294,7 @@ func (d *peerMsgHandler) applyNormalReqs(entry *eraftpb.Entry, header *raft_cmdp
 			d.response(entry, ErrResp(&util.ErrEpochNotMatch{}), nil)
 			return
 		}
-		for _, _ = range reqs {
+		for range reqs {
 			resp.Responses = append(resp.Responses, &raft_cmdpb.Response{
 				CmdType: raft_cmdpb.CmdType_Snap,
 				Snap:    &raft_cmdpb.SnapResponse{Region: d.Region()},
