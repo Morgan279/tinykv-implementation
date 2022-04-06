@@ -468,7 +468,6 @@ func TestLeaderAcknowledgeCommit2AB(t *testing.T) {
 				r.Step(acceptAndReply(m))
 			}
 		}
-
 		if g := r.RaftLog.committed > li; g != tt.wack {
 			t.Errorf("#%d: ack commit = %v, want %v", i, g, tt.wack)
 		}
@@ -566,7 +565,7 @@ func TestFollowerCommitEntry2AB(t *testing.T) {
 // TestFollowerCheckMessageType_MsgAppend tests that if the follower does not find an
 // entry in its log with the same index and term as the one in AppendEntries RPC,
 // then it refuses the new entries. Otherwise it replies that it accepts the
-// append entries.
+// Append entries.
 // Reference: section 5.3
 func TestFollowerCheckMessageType_MsgAppend2AB(t *testing.T) {
 	ents := []pb.Entry{{Term: 1, Index: 1}, {Term: 2, Index: 2}}
@@ -611,7 +610,7 @@ func TestFollowerCheckMessageType_MsgAppend2AB(t *testing.T) {
 
 // TestFollowerAppendEntries tests that when AppendEntries RPC is valid,
 // the follower will delete the existing conflict entry and all that follow it,
-// and append any new entries not already in the log.
+// and Append any new entries not already in the log.
 // Also, it writes the new entry into stable storage.
 // Reference: section 5.3
 func TestFollowerAppendEntries2AB(t *testing.T) {
@@ -902,7 +901,7 @@ func commitNoopEntry(r *Raft, s *MemoryStorage) {
 	msgs := r.readMessages()
 	for _, m := range msgs {
 		if m.MsgType != pb.MessageType_MsgAppend || len(m.Entries) != 1 || m.Entries[0].Data != nil {
-			panic("not a message to append noop entry")
+			panic("not a message to Append noop entry")
 		}
 		r.Step(acceptAndReply(m))
 	}

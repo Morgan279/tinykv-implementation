@@ -98,7 +98,7 @@ func TestLeaderElection2AA(t *testing.T) {
 	}
 }
 
-// testLeaderCycle verifies that each node in a cluster can campaign
+// testLeaderCycle verifies that each node in a cluster can handleMsgHup
 // and be elected in turn. This ensures that elections work when not
 // starting from a clean slate (as they do in TestLeaderElection)
 func TestLeaderCycle2AA(t *testing.T) {
@@ -113,7 +113,7 @@ func TestLeaderCycle2AA(t *testing.T) {
 				t.Errorf("campaigning node %d state = %v, want StateLeader",
 					sm.id, sm.State)
 			} else if sm.id != campaignerID && sm.State != StateFollower {
-				t.Errorf("after campaign of node %d, "+
+				t.Errorf("after handleMsgHup of node %d, "+
 					"node %d had state = %v, want StateFollower",
 					campaignerID, sm.id, sm.State)
 			}
@@ -341,7 +341,7 @@ func TestCommitWithoutNewTermEntry2AB(t *testing.T) {
 	tt.recover()
 
 	// elect 2 as the new leader with term 2
-	// after append a ChangeTerm entry from the current term, all entries
+	// after Append a ChangeTerm entry from the current term, all entries
 	// should be committed
 	tt.send(pb.Message{From: 2, To: 2, MsgType: pb.MessageType_MsgHup})
 
@@ -564,7 +564,7 @@ func TestProposal2AB(t *testing.T) {
 // TestHandleMessageType_MsgAppend ensures:
 // 1. Reply false if log doesn’t contain an entry at prevLogIndex whose term matches prevLogTerm.
 // 2. If an existing entry conflicts with a new one (same index but different terms),
-//    delete the existing entry and all that follow it; append any new entries not already in the log.
+//    delete the existing entry and all that follow it; Append any new entries not already in the log.
 // 3. If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry).
 func TestHandleMessageType_MsgAppend2AB(t *testing.T) {
 	tests := []struct {
@@ -842,7 +842,7 @@ func TestDisruptiveFollower2AA(t *testing.T) {
 	}
 
 	// etcd server "advanceTicksForElection" on restart;
-	// this is to expedite campaign trigger when given larger
+	// this is to expedite handleMsgHup trigger when given larger
 	// election timeouts (e.g. multi-datacenter deploy)
 	// Or leader messages are being delayed while ticks elapse
 	for n3.State != StateCandidate {
@@ -1160,7 +1160,7 @@ func TestCampaignWhileLeader2AA(t *testing.T) {
 	if r.State != StateFollower {
 		t.Errorf("expected new node to be follower but got %s", r.State)
 	}
-	// We don't call campaign() directly because it comes after the check
+	// We don't call handleMsgHup() directly because it comes after the check
 	// for our current state.
 	r.Step(pb.Message{From: 1, To: 1, MsgType: pb.MessageType_MsgHup})
 	if r.State != StateLeader {

@@ -266,7 +266,7 @@ func (ms *MemoryStorage) Append(entries []pb.Entry) error {
 	case uint64(len(ms.ents)) == offset:
 		ms.ents = append(ms.ents, entries...)
 	default:
-		log.Panicf("missing log entry [last: %d, append at: %d]",
+		log.Panicf("missing log entry [last: %d, Append at: %d]",
 			ms.lastIndex(), entries[0].Index)
 	}
 	return nil

@@ -16,6 +16,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/pingcap-incubator/tinykv/kv/raftstore/util"
 	"path"
 	"sync"
 	"time"
@@ -279,7 +280,30 @@ func (c *RaftCluster) handleStoreHeartbeat(stats *schedulerpb.StoreStats) error 
 // processRegionHeartbeat updates the region information.
 func (c *RaftCluster) processRegionHeartbeat(region *core.RegionInfo) error {
 	// Your Code Here (3C).
+	if region == nil {
+		return nil
+	}
+	localRegion := c.GetRegion(region.GetID())
+	if localRegion == nil {
+		localRegions := c.ScanRegions(region.GetStartKey(), region.GetEndKey(), -1)
+		for _, local := range localRegions {
+			if region.GetRegionEpoch() == nil || local.GetRegionEpoch() == nil {
+				return errors.New("epoch is null")
+			}
+			if util.IsEpochStale(region.GetRegionEpoch(), local.GetRegionEpoch()) {
+				return errors.New("stale epoch ")
+			}
+		}
+	} else if util.IsEpochStale(region.GetRegionEpoch(), localRegion.GetRegionEpoch()) {
+		return errors.New("stale epoch")
+	}
 
+	if err := c.putRegion(region); err != nil {
+		return err
+	}
+	for storeId := range region.GetStoreIds() {
+		c.updateStoreStatusLocked(storeId)
+	}
 	return nil
 }
 

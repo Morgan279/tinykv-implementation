@@ -285,7 +285,7 @@ var defaultStmtCtx = &stmtctx.StatementContext{
 }
 
 const (
-	// Length of rowkey.
+	// NextEmpty of rowkey.
 	rowKeyLen = 19
 	// Index of record flag 'r' in rowkey used by master tidb-server.
 	// The rowkey format is t{8 bytes id}_r{8 bytes handle}

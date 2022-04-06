@@ -14,10 +14,13 @@
 package schedulers
 
 import (
+	"fmt"
+	"github.com/pingcap-incubator/tinykv/proto/pkg/metapb"
 	"github.com/pingcap-incubator/tinykv/scheduler/server/core"
 	"github.com/pingcap-incubator/tinykv/scheduler/server/schedule"
 	"github.com/pingcap-incubator/tinykv/scheduler/server/schedule/operator"
 	"github.com/pingcap-incubator/tinykv/scheduler/server/schedule/opt"
+	"sort"
 )
 
 func init() {
@@ -77,6 +80,90 @@ func (s *balanceRegionScheduler) IsScheduleAllowed(cluster opt.Cluster) bool {
 
 func (s *balanceRegionScheduler) Schedule(cluster opt.Cluster) *operator.Operator {
 	// Your Code Here (3C).
+	allStores := cluster.GetStores()
+	var stores []*core.StoreInfo
+
+	for _, store := range allStores {
+		if !store.IsUp() || store.DownTime() > cluster.GetMaxStoreDownTime() {
+			continue
+		}
+		stores = append(stores, store)
+	}
+
+	sort.Slice(stores, func(i, j int) bool {
+		return stores[i].GetRegionSize() > stores[j].GetRegionSize()
+	})
+	
+	for _, source := range stores {
+		for i := 0; i < balanceRegionRetryLimit; i++ {
+			region := pickRegionByOrder(cluster, source.GetID())
+			if region != nil && len(region.GetPeers()) == cluster.GetMaxReplicas() {
+				oldPeer := region.GetStorePeer(source.GetID())
+				if op := s.generateMovePeerOp(cluster, region, oldPeer); op != nil {
+					return op
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func pickRegionByOrder(cluster opt.Cluster, sourceID uint64) *core.RegionInfo {
+	var region *core.RegionInfo
+	cluster.GetPendingRegionsWithLock(sourceID, func(regions core.RegionsContainer) {
+		region = regions.RandomRegion(nil, nil)
+	})
+	if region == nil {
+		cluster.GetFollowersWithLock(sourceID, func(regions core.RegionsContainer) {
+			region = regions.RandomRegion(nil, nil)
+		})
+	}
+	if region == nil {
+		cluster.GetLeadersWithLock(sourceID, func(regions core.RegionsContainer) {
+			region = regions.RandomRegion(nil, nil)
+		})
+	}
+	return region
+}
+
+func (s *balanceRegionScheduler) generateMovePeerOp(cluster opt.Cluster, region *core.RegionInfo, oldPeer *metapb.Peer) *operator.Operator {
+	srcStoreID := oldPeer.GetStoreId()
+	source := cluster.GetStore(srcStoreID)
+	distStore := pickDistStore(cluster, region)
+	if distStore == nil {
+		return nil
+	}
+
+	if int64(source.GetRegionSize()-distStore.GetRegionSize()) > 2*region.GetApproximateSize() {
+		newPeer, err := cluster.AllocPeer(distStore.GetID())
+		if err != nil {
+			return nil
+		}
+		desc := fmt.Sprintf("move region from store %d to store %d", srcStoreID, distStore.GetID())
+		op, err := operator.CreateMovePeerOperator(desc, cluster, region, operator.OpBalance, oldPeer.GetStoreId(), newPeer.GetStoreId(), newPeer.GetId())
+		if err != nil {
+			return nil
+		}
+		return op
+	}
 
 	return nil
+}
+
+func pickDistStore(cluster opt.Cluster, region *core.RegionInfo) *core.StoreInfo {
+	var dist *core.StoreInfo
+	for _, store := range cluster.GetStores() {
+		if _, ok := region.GetStoreIds()[store.GetID()]; !ok && store.IsUp() && store.DownTime() < cluster.GetMaxStoreDownTime() {
+			dist = maybeBetterDist(dist, store)
+		}
+
+	}
+	return dist
+}
+
+func maybeBetterDist(best *core.StoreInfo, candidate *core.StoreInfo) *core.StoreInfo {
+	if best == nil || candidate.GetRegionSize() < best.GetRegionSize() {
+		return candidate
+	}
+	return best
 }
